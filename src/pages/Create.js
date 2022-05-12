@@ -1,60 +1,81 @@
-import React from 'react';
-import { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { addDoc, collection, Timestamp } from 'firebase/firestore';
+import { auth, db, storage } from '../firebase-config';
+import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 
-const Create = () => {
+const Create = ({ isAuth }) => {
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
-    const [author, setAuthor] = useState('Toninho');
-    const [isPending, setIsPending] = useState(false);
-    const navigate = useNavigate();
+    const [imageUrl, setImageUrl] = useState(null);
+    let navigate = useNavigate();
+    const postsCollection = collection(db, 'posts');
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        const blog = { title, body, author };
+    useEffect(() => {
+        if (!isAuth) {
+            navigate("/login");
+        }
+    }, []);
 
-        setIsPending(true);
+    const handleClick = async () => {
+        
+        const storageRef = ref(
+            storage,
+            `/images/${Date.now()}${imageUrl}`
+        );
 
-        fetch('http://localhost:3001/blogs', {
-            method: 'POST',
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(blog)
-        }).then(() => {
-            setIsPending(false);
-            navigate('/');
-        })
-    }
+        const uploadImage = uploadBytesResumable(storageRef, imageUrl);
+        
+        uploadImage.on(
+            "state_changed",
+            () => {
+                getDownloadURL(uploadImage.snapshot.ref).then((url) => {
+                    addDoc(postsCollection, {
+                        title: title,
+                        body: body,
+                        author: { name: auth.currentUser.displayName, id: auth.currentUser.uid },
+                        imageUrl: url,
+                        creationDate: Timestamp.now().toDate(),
+                    })
+                        .then(() => {
+                            console.log("sucesso");
+                            window.location.pathname = "/home";
+                        })
+                        .catch((err) => {
+                            console.log("erro");
+                        });
+                });
+            }
+        );
+        
+    } 
 
     return (
         <div className='create'>
             <h2>Adicione uma nova postagem</h2>
-            <form onSubmit={handleSubmit}>
-                <label>Título</label>
-                <input
-                    type='text'
-                    required
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)} />
+            <label>Título</label>
+            <input
+                type='text'
+                required
+                value={title}
+                onChange={(event) => setTitle(event.target.value)} />
 
-                <label>Corpo da postagem</label>
-                <textarea
-                    required
-                    value={body}
-                    onChange={(event) => setBody(event.target.value)} />
+            <label>Corpo da postagem</label>
+            <textarea
+                required
+                value={body}
+                onChange={(event) => setBody(event.target.value)} />
 
-                <label>Autor</label>
-                <select
-                value={author}
-                onChange={(event) => setAuthor(event.target.value)}>
-                    <option value="Ricardo">Ricardo</option>
-                    <option value="Toninho">Toninho</option>
-                    <option value="Meireles">Meireles</option>
-                    <option value="Josué">Josué</option>
-                    <option value="Bruno">Bruno</option>
-                </select>
-                {!isPending && <button>Postar</button>}
-                {isPending && <button disabled>Postar</button>}
-            </form>
+            <label>Imagem da postagem</label>
+            <input
+                type="file"
+                name='image'
+                accept='image/*'
+                onChange={(event) => setImageUrl(event.target.files[0])}
+            />
+
+            <button onClick={handleClick}>Postar</button>
+
         </div>
     )
 }

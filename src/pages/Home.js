@@ -1,16 +1,46 @@
-import React from 'react';
-import BlogList from './BlogList';
-import useFetch from './useFetch'
+import React, { useEffect, useState } from 'react';
+import { collection, getDocs, doc } from 'firebase/firestore';
+import { db } from '../firebase-config';
 
 function Home() {
+    const postsCollection = collection(db, 'posts');
 
-    const {data: blogs, isPending, error} = useFetch('http://localhost:3001/blogs');
+    const [posts, setPosts] = useState([]);
 
-    return(
+    useEffect(() => {
+        const getPosts = async () => {
+            const data = await getDocs(postsCollection);
+            console.log(data)
+            setPosts(data.docs.map((doc) => ({
+                title: doc.data().title,
+                body: doc.data().body,
+                id: doc.id,
+                img: doc.data().imageUrl,
+                date: doc.data().creationDate,
+                author: doc.data().author.name,
+            })));
+        }
+
+        getPosts();
+        console.log(posts);
+    }, []);
+
+    return (
         <div className='home'>
-            {error && <div>{error}</div>}
-            {isPending && <div>Loading...</div>}
-            <BlogList blogs={blogs} title="Todas as postagens"/>
+            <h2>Todos os Posts</h2>
+            <div className='blog-list'>
+                {posts.sort((a, b) => a.date - b.date)
+                    .map((post) => {
+                    return (
+                        <div className='blog-preview' key={post.id}>
+                            <img src={post.img} className="blog-img" />
+                            <h2>{post.title}</h2>
+                            <small>Escrito por {post.author} em: {post.date.toDate().toString()}</small>
+                            <p>{post.body}</p>
+                        </div>
+                    )
+                })}
+            </div>
         </div>
     )
 }

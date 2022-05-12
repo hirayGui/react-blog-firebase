@@ -1,28 +1,54 @@
 import React, { useState } from 'react'
-import Navbar from './pages/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Create from './pages/Create';
 import BlogDetails from './pages/BlogDetails';
 import NotFound from './pages/NotFound';
-import {BrowserRouter as Router, Route, Routes} from 'react-router-dom';
+import { BrowserRouter as Router, Link, Route, Routes } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
+import { auth } from './firebase-config';
 
-function App(){
+function App() {
 
-  const [isAuth, setIsAuth] = useState(false);
+  const [isAuth, setIsAuth] = useState(localStorage.getItem("isAuth"));
 
-  return(
+  const signUserOut = () => {
+    signOut(auth)
+      .then(() => {
+        console.log(isAuth);
+        localStorage.clear();
+        setIsAuth(false);
+        window.location.pathname = '/login';
+      });
+  }
+
+  return (
     <Router>
       <div className='App'>
-        <Navbar isAuth={isAuth} setIsAuth={setIsAuth}/>
+        <nav className='navbar'>
+          <h1>Blog react</h1>
+          <div className='links'>
+            <Link to='/'>Home</Link>
+            {!isAuth ? (
+              <Link to='/login'>Login</Link>
+            ) : (
+              <>
+                <Link to='/create'>Criar post</Link>
+                <button onClick={signUserOut}>Sair</button>
+              </>
+            )}
+          </div>
+        </nav>
         <div className='content'>
           <Routes>
 
-            <Route exact path="/" element={<Home />} />
+            <Route exact path="/" element={<Home isAuth={isAuth}/>} />
 
-            <Route exact path="/login" element={<Login setIsAuth={setIsAuth}/>} />
-            
-            <Route exact path="/create" element={<Create />} />
+            <Route exact path="/home" element={<Home isAuth={isAuth}/>} />
+
+            <Route exact path="/login" element={<Login setIsAuth={setIsAuth} />} />
+
+            <Route exact path="/create" element={<Create isAuth={isAuth}/>} />
 
             <Route exact path="/blogs/:id" element={<BlogDetails />} />
 
